@@ -11,6 +11,7 @@ ZED_CAMERA=0
 # set CUDNN_HALF=1 to further speedup 3 x times (Mixed-precision on Tensor Cores) GPU: Volta, Xavier, Turing and higher
 # set AVX=1 and OPENMP=1 to speedup on CPU (if error occurs then set AVX=0)
 
+USE_CPP=0
 DEBUG=0
 
 ARCH= -gencode arch=compute_30,code=sm_30 \
@@ -52,7 +53,12 @@ LIBNAMESO=libdarknet.so
 APPNAMESO=uselib
 endif
 
+ifeq ($(USE_CPP), 1)
+CC=g++
+else
 CC=gcc
+endif
+
 CPP=g++
 NVCC=nvcc
 OPTS=-Ofast
@@ -72,6 +78,10 @@ endif
 endif
 
 CFLAGS+=$(OPTS)
+
+ifneq (,$(findstring MSYS_NT,$(OS)))
+LDFLAGS+=-lws2_32
+endif
 
 ifeq ($(OPENCV), 1)
 COMMON+= -DOPENCV
