@@ -33,6 +33,7 @@
 #include "route_layer.h"
 #include "shortcut_layer.h"
 #include "scale_channels_layer.h"
+#include "sam_layer.h"
 #include "yolo_layer.h"
 #include "gaussian_yolo_layer.h"
 #include "upsample_layer.h"
@@ -525,6 +526,10 @@ int resize_network(network *net, int w, int h)
             resize_crop_layer(&l, w, h);
         }else if(l.type == MAXPOOL){
             resize_maxpool_layer(&l, w, h);
+        }else if (l.type == LOCAL_AVGPOOL) {
+            resize_maxpool_layer(&l, w, h);
+        }else if (l.type == BATCHNORM) {
+            resize_batchnorm_layer(&l, w, h);
         }else if(l.type == REGION){
             resize_region_layer(&l, w, h);
         }else if (l.type == YOLO) {
@@ -534,9 +539,11 @@ int resize_network(network *net, int w, int h)
         }else if(l.type == ROUTE){
             resize_route_layer(&l, net);
         }else if (l.type == SHORTCUT) {
-            resize_shortcut_layer(&l, w, h);
+            resize_shortcut_layer(&l, w, h, net);
         }else if (l.type == SCALE_CHANNELS) {
             resize_scale_channels_layer(&l, net);
+        }else if (l.type == SAM) {
+            resize_sam_layer(&l, w, h);
         }else if (l.type == DROPOUT) {
             resize_dropout_layer(&l, inputs);
             l.out_w = l.w = w;
@@ -1077,7 +1084,6 @@ void fuse_conv_batchnorm(network net)
                 int f;
                 for (f = 0; f < l->n; ++f)
                 {
-                    //l->biases[f] = l->biases[f] - (double)l->scales[f] * l->rolling_mean[f] / (sqrt((double)l->rolling_variance[f]) + .000001f);
                     l->biases[f] = l->biases[f] - (double)l->scales[f] * l->rolling_mean[f] / (sqrt((double)l->rolling_variance[f] + .000001));
 
                     const size_t filter_size = l->size*l->size*l->c / l->groups;
@@ -1085,7 +1091,6 @@ void fuse_conv_batchnorm(network net)
                     for (i = 0; i < filter_size; ++i) {
                         int w_index = f*filter_size + i;
 
-                        //l->weights[w_index] = (double)l->weights[w_index] * l->scales[f] / (sqrt((double)l->rolling_variance[f]) + .000001f);
                         l->weights[w_index] = (double)l->weights[w_index] * l->scales[f] / (sqrt((double)l->rolling_variance[f] + .000001));
                     }
                 }
